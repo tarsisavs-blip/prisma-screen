@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#17161C; --bg2:#1F1D26; --surface:#232130; --text:#F4F2F8; --muted:#A9A5BA; --line:#34313F;
+    --violet:#6C3BF5; --violet-ink:#9170FF; --cyan:#22C7D9; --coral:#FF6B57; --lime:#A6D82E; --ink:#17161C;
+    --coral-ink:#FF6B57; --lime-ink:#A6D82E; color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#FFFFFF; --bg2:#F4F2F8; --surface:#FFFFFF; --text:#17161C; --muted:#5E5B6B; --line:#E4E1EE;
+      --violet-ink:#6C3BF5; --coral-ink:#C93D2A; --lime-ink:#5F7F0A; color-scheme: light; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; width: 340px; font: 500 13px/1.45 Manrope, system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  main { padding: 16px; display: grid; gap: 12px; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand svg { flex: none; }
+  h1 { font: 800 17px Manrope, system-ui, sans-serif; letter-spacing: -.03em; margin: 0; }
+  .card { background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: grid; gap: 8px; }
+  .row { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.ok { background: var(--lime); } .dot.warn { background: #F5A524; }
+  button { font: 700 14px Manrope, system-ui, sans-serif; min-height: 44px; padding: 0 14px; border-radius: 14px; border: 0; background: var(--violet); color: #fff; cursor: pointer; }
+  button:hover { filter: brightness(1.08); }
+  button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+  button.sec { background: var(--bg2); color: var(--text); border: 1px solid var(--line); }
+  button.danger { background: var(--coral); color: var(--ink); }
+  #qr { background: #fff; padding: 10px; border-radius: 16px; justify-self: center; display: none; border: 1px solid var(--line); }
+  #qr img { display: block; width: 180px; height: 180px; image-rendering: pixelated; }
+  #msg { color: var(--coral-ink); min-height: 1em; font-weight: 600; }
+  input[type=text] { width: 100%; height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font: 600 13px 'JetBrains Mono', ui-monospace, monospace; }
+  small { color: var(--muted); font-size: 12px; }
+  details { background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 4px 12px; }
+  summary { cursor: pointer; min-height: 40px; display: flex; align-items: center; font-weight: 700; }
+  details p { margin: 8px 0; }
+  label { display: flex; gap: 8px; align-items: flex-start; }
+  input[type=checkbox] { accent-color: var(--violet); margin-top: 3px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">
+    <svg viewBox="0 0 48 44" width="26" height="24" aria-hidden="true"><path d="M4 28l20 10 20-10v4L24 42 4 32z" fill="#FF6B57"/><path d="M4 20l20 10 20-10v4L24 34 4 24z" fill="#22C7D9"/><path d="M24 2L44 12 24 22 4 12z" fill="#6C3BF5"/></svg>
+    <h1>prisma-screen</h1>
+  </div>
+  <div class="card">
+    <div class="row"><span class="dot" id="dBroker"></span><span id="tBroker">Conectando ao servidor de pareamento…</span></div>
+    <div class="row"><span class="dot" id="dPhone"></span><span id="tPhone">Celular desconectado</span></div>
+    <div class="row"><span class="dot" id="dAuth"></span><span id="tAuth">Nenhuma aba autorizada</span></div>
+  </div>
+  <div id="qr"><img id="qrImg" alt="QR code de pareamento"></div>
+  <small id="qrHint"></small>
+  <button class="sec" id="bQr" style="display:none">Mostrar QR code</button>
+  <button id="bAuth">Autorizar esta aba</button>
+  <div id="msg"></div>
+  <button class="sec" id="bPdf">Abrir PDF no prisma-screen</button>
+  <details>
+    <summary>Configurações</summary>
+    <p><small>Endereço onde o app do celular está publicado (HTTPS):</small></p>
+    <input type="text" id="pwaUrl" placeholder="https://prisma-screen.vercel.app/">
+    <p><label><input type="checkbox" id="real"> <span>Usar teclas reais (modo depuração). Funciona em mais sites, mas o Chrome mostra uma faixa "depuração iniciada" na aba.</span></label></p>
+    <button class="sec" id="bReset" style="width:100%; margin-bottom:8px">Gerar novo pareamento</button>
+  </details>
+</main>
+<script src="lib/qrcode.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>prisma-screen - PDF</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #F4F2F8; font: 500 14px Manrope, system-ui, sans-serif; overflow: hidden; }
+  #open { position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; gap: 14px; text-align: center; padding: 20px; background: #17161C; }
+  #open h2 { font: 800 28px Manrope, system-ui, sans-serif; letter-spacing: -.04em; margin: 0; }
+  #open input[type=text] { width: min(520px, 80vw); height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid #34313F; background: #1F1D26; color: inherit; font: inherit; }
+  #open input[type=file] { color: #A9A5BA; }
+  #open small { color: #A9A5BA; }
+  #open button, #fs { min-height: 44px; padding: 0 18px; border-radius: 14px; border: 0; background: #6C3BF5; color: #fff; cursor: pointer; font: 700 14px Manrope, system-ui, sans-serif; }
+  #open button:focus-visible, #fs:focus-visible, #open input:focus-visible { outline: 2px solid #9170FF; outline-offset: 2px; }
+  #err { color: #FF6B57; font-weight: 600; }
+  #stage { position: fixed; inset: 0; display: none; place-content: center; }
+  canvas { display: block; background: #fff; }
+  #bar { position: fixed; right: 10px; bottom: 10px; display: none; gap: 8px; align-items: center; opacity: .0; transition: opacity .2s; }
+  body:hover #bar { opacity: .85; }
+  #pg { background: #17161Ccc; padding: 6px 10px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div id="open">
+  <svg viewBox="0 0 48 44" width="56" height="51" aria-hidden="true"><path d="M4 28l20 10 20-10v4L24 42 4 32z" fill="#FF6B57"/><path d="M4 20l20 10 20-10v4L24 34 4 24z" fill="#22C7D9"/><path d="M24 2L44 12 24 22 4 12z" fill="#8B63FF"/></svg>
+  <h2>Abrir PDF no prisma-screen</h2>
+  <div><input type="file" id="file" accept="application/pdf,.pdf"></div>
+  <div>ou</div>
+  <div><input type="text" id="url" placeholder="Endereço (URL) do PDF"> <button id="go">Abrir</button></div>
+  <div id="err"></div>
+  <small>Depois de abrir, clique no ícone da extensão e em "Autorizar esta aba".</small>
+</div>
+<div id="stage"><canvas id="cv"></canvas></div>
+<div id="bar"><span id="pg"></span><button id="fs">Tela cheia</button></div>
+<script src="../overlay.js"></script>
+<script type="module" src="viewer.js"></script>
+</body>
+</html>

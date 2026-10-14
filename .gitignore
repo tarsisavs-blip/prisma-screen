@@ -1,0 +1,6 @@
+node_modules/
+bridge/dist/
+_deps/
+.claude/
+.vercel/
+*.exe

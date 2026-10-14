@@ -1,0 +1,23 @@
+{
+  "name": "prisma-screen",
+  "productName": "prisma-screen",
+  "version": "1.1.0",
+  "description": "Ponte entre o prisma-screen (celular) e o Holyrics: passa slides pela API e desenha laser, destaque e tela preta sobre o projetor.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "br.parakleto.passador.holyrics",
+    "productName": "prisma-screen",
+    "icon": "build/icon.png",
+    "files": ["main.js", "preload.js", "ui.html", "ui.js", "overlay.html", "overlay.js", "icon.png", "lib/**/*"],
+    "win": { "target": "nsis", "signAndEditExecutable": false },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}

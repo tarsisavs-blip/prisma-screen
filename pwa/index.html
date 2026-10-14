@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#17161C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="prisma-screen">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<title>prisma-screen</title>
+<style>
+  /* Tokens do manual de marca Prisma: tema escuro (palco) por padrão, claro conforme o aparelho. */
+  :root {
+    --bg:#17161C; --bg2:#1F1D26; --surface:#232130; --text:#F4F2F8; --muted:#A9A5BA; --line:#34313F;
+    --violet:#6C3BF5; --violet-ink:#9170FF; --cyan:#22C7D9; --coral:#FF6B57; --lime:#A6D82E; --ink:#17161C;
+    --cyan-ink:#22C7D9; --lime-ink:#A6D82E; --coral-ink:#FF6B57;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:#FFFFFF; --bg2:#F4F2F8; --surface:#FFFFFF; --text:#17161C; --muted:#5E5B6B; --line:#E4E1EE;
+      --violet-ink:#6C3BF5; --cyan-ink:#0B7F8C; --lime-ink:#5F7F0A; --coral-ink:#C93D2A;
+      color-scheme: light;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 500 15px Manrope, system-ui, sans-serif;
+    overscroll-behavior: none; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  #app { height: 100%; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; padding-top: max(14px, env(safe-area-inset-top)); padding-bottom: max(14px, env(safe-area-inset-bottom)); overflow-y: auto; }
+  .ic { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  .top { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+  .brand { white-space: nowrap; display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; letter-spacing: -.03em; }
+  .brand .mark { width: 32px; height: 32px; border-radius: 9px; background: var(--cyan); color: var(--ink); display: grid; place-content: center; }
+  .brand .mark .ic { width: 20px; height: 20px; }
+  .status { display: inline-flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 12px; border-radius: 999px; background: var(--bg2); border: 1px solid var(--line); font-size: 12px; font-weight: 600; color: var(--muted); }
+  .status .t { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.ok { background: var(--lime); } .dot.warn { background: #F5A524; }
+
+  #warn { color: var(--coral-ink); font-size: 13px; font-weight: 600; text-align: center; min-height: 1em; }
+  #dbg { font-size: 10px; color: var(--muted); text-align: center; min-height: 1em; }
+
+  button { font: inherit; color: var(--text); background: var(--bg2); border: 1px solid var(--line); border-radius: 18px; padding: 12px; cursor: pointer; }
+  button:active { filter: brightness(1.15); transform: scale(.985); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+
+  .nav { flex: 1.1; display: flex; gap: 12px; min-height: 104px; }
+  .nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 800; border-radius: 22px; }
+  .nav .ic { width: 32px; height: 32px; }
+  #prev { flex: 0 0 104px; }
+  #next { flex: 1 1 auto; background: var(--violet); border-color: var(--violet); color: #fff; font-size: 16px; }
+
+  .blackout { display: grid; place-content: center; min-height: 56px; }
+  .blackout.on { background: color-mix(in srgb, var(--coral) 22%, var(--bg2)); border-color: var(--coral); }
+  .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tools button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 66px; font-size: 12px; font-weight: 700; }
+  button.on { background: var(--cyan); border-color: var(--cyan); color: var(--ink); }
+  .blackout.on { color: var(--text); }
+
+  .lbl { font: 600 10px 'JetBrains Mono', monospace; letter-spacing: .08em; color: var(--muted); }
+  .colors { display: flex; gap: 10px; align-items: center; justify-content: center; }
+  .sw { width: 36px; height: 36px; border-radius: 50%; border: 3px solid transparent; padding: 0; }
+  .sw.sel { border-color: var(--text); }
+  #cycle { padding: 0 14px; min-height: 44px; font-size: 13px; font-weight: 700; border-radius: 12px; }
+  .sl { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; font-size: 13px; font-weight: 600; color: var(--muted); background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 8px 14px; min-height: 48px; }
+  .sl input { width: 100%; accent-color: var(--violet); }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 4px; }
+  .seg button { border: 0; background: transparent; color: var(--muted); border-radius: 10px; min-height: 44px; font-size: 14px; font-weight: 700; }
+  .seg button.sel { background: var(--violet); color: #fff; }
+  #pad { flex: 1.4; min-height: 150px; border-radius: 22px; background: var(--bg2); border: 2px dashed var(--line); display: grid; place-content: center; color: var(--muted); text-align: center; touch-action: none; padding: 10px; font-weight: 700; }
+  #pad small { font-weight: 500; font-size: 13px; }
+  #pad.hold { border-style: solid; border-color: var(--cyan); background: color-mix(in srgb, var(--cyan) 12%, var(--bg2)); color: var(--text); }
+  #setup { position: fixed; inset: 0; background: var(--bg); display: none; place-content: center; text-align: center; padding: 24px; gap: 12px; z-index: 9; justify-items: center; }
+  #setup.show { display: grid; }
+  #setup h2 { font: 800 28px Manrope, sans-serif; letter-spacing: -.04em; margin: 0; }
+  #setup p { color: var(--muted); max-width: 300px; margin: 0; line-height: 1.5; }
+  #setupMsg { color: var(--coral-ink) !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div class="brand">
+      <span class="mark"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 14.5zM8 20h8M12 17v3"/></svg></span>
+      prisma-screen
+    </div>
+    <div class="status"><span class="dot" id="dConn"></span><span class="t" id="tConn">Desconectado</span><span class="dot" id="dAuth" style="margin-left:auto"></span><span class="t" id="tAuth">Tela não autorizada</span></div>
+  </div>
+  <div id="warn"></div>
+  <div id="dbg" class="mono"></div>
+  <div class="nav">
+    <button id="prev" aria-label="Retroceder slide"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5L9 12l10 7zM5 5v14"/></svg>Voltar</button>
+    <button id="next" aria-label="Avançar slide"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l10 7-10 7zM19 5v14"/></svg>Avançar</button>
+  </div>
+  <button id="blackout" class="blackout" aria-label="Apagar tela (preto)" aria-pressed="false">
+    <svg viewBox="0 0 48 48" width="36" height="36" aria-hidden="true">
+      <rect x="4" y="4" width="40" height="40" rx="8" fill="#000" stroke="#6b7280" stroke-width="2"/>
+    </svg>
+  </button>
+  <div class="tools">
+    <button id="laser" aria-label="Laser" aria-pressed="false">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21l9-9M20 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0M17 1.5v2M22.5 7h-2M20.8 3.2l-1.2 1.2M13.2 3.2l1.2 1.2"/></svg>Laser
+    </button>
+    <button id="fade" aria-label="Destaque (fade)" aria-pressed="false">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="12" cy="12" r="4"/></svg>Destaque
+    </button>
+  </div>
+  <div class="colors" id="colors">
+    <button class="sw sel" data-c="red" style="background:#ff2a2a" aria-label="Vermelho"></button>
+    <button class="sw" data-c="green" style="background:#22ff55" aria-label="Verde"></button>
+    <button class="sw" data-c="blue" style="background:#2a8bff" aria-label="Azul"></button>
+    <button id="cycle">Trocar cor</button>
+  </div>
+  <label class="sl"><span class="lbl">CÍRCULO</span> <input type="range" id="rad" min="5" max="45" value="15"></label>
+  <div class="seg">
+    <button id="mGyro">Giroscópio</button>
+    <button id="mPad" class="sel">Touchpad</button>
+  </div>
+  <label class="sl" id="sensRow"><span class="lbl">SENSIB. GIRO</span> <input type="range" id="sens" min="15" max="90" value="40"></label>
+  <div id="pad">Touchpad<br><small id="padHint">deslize para mover o laser / destaque</small></div>
+</div>
+<div id="setup">
+  <svg viewBox="0 0 48 44" width="64" height="58" aria-hidden="true"><path d="M4 28l20 10 20-10v4L24 42 4 32z" fill="#FF6B57"/><path d="M4 20l20 10 20-10v4L24 34 4 24z" fill="#22C7D9"/><path d="M24 2L44 12 24 22 4 12z" fill="#6C3BF5"/></svg>
+  <h2>prisma-screen</h2>
+  <p>Abra a extensão ou o programa no computador e escaneie o QR code com a câmera do celular.</p>
+  <p id="setupMsg"></p>
+</div>
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>prisma-screen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#17161C; --bg2:#1F1D26; --surface:#232130; --text:#F4F2F8; --muted:#A9A5BA; --line:#34313F;
+    --violet:#6C3BF5; --violet-ink:#9170FF; --cyan:#22C7D9; --coral:#FF6B57; --lime:#A6D82E; --ink:#17161C;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 500 14px/1.45 Manrope, "Segoe UI", system-ui, sans-serif; }
+  main { padding: 20px; display: grid; gap: 14px; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  h1 { font: 800 22px Manrope, "Segoe UI", sans-serif; letter-spacing: -.03em; margin: 0; }
+  h2 { font: 600 10px 'JetBrains Mono', Consolas, monospace; margin: 0 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  section { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 16px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-weight: 600; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.ok { background: var(--lime); } .dot.warn { background: #F5A524; } .dot.bad { background: var(--coral); }
+  label { display: grid; gap: 6px; margin: 10px 0; font-size: 13px; font-weight: 600; color: var(--muted); }
+  input[type=text], input[type=password], input[type=number], select { height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg2); color: var(--text); font: 600 14px 'JetBrains Mono', Consolas, monospace; }
+  select { font-family: Manrope, "Segoe UI", sans-serif; }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--violet-ink); outline-offset: 2px; }
+  label.chk { display: flex; gap: 10px; align-items: center; color: var(--text); }
+  input[type=checkbox] { accent-color: var(--violet); width: 18px; height: 18px; }
+  button { font: 700 14px Manrope, "Segoe UI", sans-serif; min-height: 44px; padding: 0 16px; border-radius: 14px; border: 0; background: var(--violet); color: #fff; cursor: pointer; }
+  button:hover { filter: brightness(1.1); }
+  button.sec { background: var(--bg2); color: var(--text); border: 1px solid var(--line); }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  #qr { background: #fff; padding: 10px; border-radius: 16px; width: max-content; margin: 10px auto; }
+  #qr img { display: block; width: 200px; height: 200px; image-rendering: pixelated; }
+  small { color: var(--muted); font-size: 12px; }
+  #hres { min-height: 1.3em; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">
+    <svg viewBox="0 0 48 44" width="30" height="27" aria-hidden="true"><path d="M4 28l20 10 20-10v4L24 42 4 32z" fill="#FF6B57"/><path d="M4 20l20 10 20-10v4L24 34 4 24z" fill="#22C7D9"/><path d="M24 2L44 12 24 22 4 12z" fill="#8B63FF"/></svg>
+    <h1>prisma-screen</h1>
+  </div>
+
+  <section>
+    <h2>Celular</h2>
+    <div class="row"><span class="dot" id="dBroker"></span><span id="tBroker">Conectando ao servidor de pareamento…</span></div>
+    <div class="row"><span class="dot" id="dPhone"></span><span id="tPhone">Celular desconectado</span></div>
+    <div id="qr"><img id="qrImg" alt="QR code de pareamento"></div>
+    <small>Escaneie com a câmera do celular. O app do celular passa a controlar este programa (e deixa de controlar a extensão do Chrome até você escanear o QR da extensão de novo).</small>
+    <div class="btns"><button class="sec" id="bRotate">Gerar novo pareamento</button></div>
+  </section>
+
+  <section>
+    <h2>Holyrics (passar slides)</h2>
+    <label>Endereço do computador com o Holyrics
+      <input type="text" id="hHost" placeholder="127.0.0.1">
+    </label>
+    <label>Porta do API Server
+      <input type="number" id="hPort" placeholder="8091">
+    </label>
+    <label>Token (Arquivo › Configurações › API Server › Gerenciar permissões; libere ActionNext e ActionPrevious)
+      <input type="password" id="hToken" placeholder="token">
+    </label>
+    <div class="btns">
+      <button class="sec" id="bNext">Testar Avançar</button>
+      <button class="sec" id="bPrev">Testar Voltar</button>
+    </div>
+    <div class="row" id="hres"></div>
+  </section>
+
+  <section>
+    <h2>Laser, destaque e tela preta (sobre o projetor)</h2>
+    <label>Monitor onde o efeito aparece
+      <select id="display"></select>
+    </label>
+    <label class="chk"><input type="checkbox" id="overlayOn"> Autorizar efeitos neste monitor</label>
+    <small>Sem autorização, o celular só passa slides. O laser, o destaque e a tela preta nunca aparecem em outra tela.</small>
+    <div class="btns"><button class="sec" id="bTest">Testar laser e destaque (4 s)</button></div>
+  </section>
+
+  <section>
+    <h2>Sistema</h2>
+    <label class="chk"><input type="checkbox" id="autostart"> Iniciar com o Windows</label>
+    <small>Fechar esta janela mantém o programa rodando na bandeja do sistema (perto do relógio).</small>
+  </section>
+</main>
+<script src="lib/peerjs.min.js"></script>
+<script src="lib/qrcode.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
