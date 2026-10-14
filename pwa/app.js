@@ -11,7 +11,7 @@ if (location.hash.length > 1) {
   if (id && token) LS.set('pair', { id, token });
   history.replaceState(null, '', location.pathname);
 }
-const pair = LS.get('pair', null);
+let pair = LS.get('pair', null);
 window.addEventListener('hashchange', () => location.reload());
 
 // ---------- Estado ----------
@@ -59,7 +59,8 @@ function connect() {
   peer = new Peer({ config: ICE });
   let opened = false;
   const again = (e) => {
-    S.connected = false; ui();
+    S.connected = false; S.authorized = false; ui();
+    if (!pair) return; // desconexão manual: não tenta reconectar
     if (e && e.type) dbg('Erro: ' + e.type + ' — ' + (ERR[e.type] || (e.message || '')));
     clearTimeout(retry); retry = setTimeout(connect, 3000);
   };
@@ -119,6 +120,7 @@ function ui() {
       : 'segure e deslize o dedo para mover';
   $('rad').value = S.radius;
   $('sens').value = S.span;
+  $('bOff').disabled = !pair;
 }
 
 const buzz = () => { try { navigator.vibrate && navigator.vibrate(15); } catch {} };
@@ -135,6 +137,107 @@ $('cycle').onclick = () => setColor(ORDER[(ORDER.indexOf(S.color) + 1) % 3]);
 function setColor(c) { S.color = c; LS.set('color', c); ui(); pushState(); }
 $('rad').oninput = (e) => { S.radius = +e.target.value; LS.set('radius', S.radius); pushState(); };
 $('sens').oninput = (e) => { S.span = +e.target.value; LS.set('span', S.span); };
+
+// ---------- Desconectar e ler QR code ----------
+function disconnect() {
+  // Apaga laser, destaque e tela preta no computador antes de sair.
+  S.laser = S.fade = S.blackout = S.touching = false;
+  pushState(true);
+  pair = null;
+  try { localStorage.removeItem('pair'); } catch {}
+  clearTimeout(retry);
+  const c = conn, p = peer;
+  conn = peer = null;
+  setTimeout(() => { try { c && c.close(); } catch {} try { p && p.destroy(); } catch {} }, 120);
+  S.connected = false; S.authorized = false; S.title = '';
+  dbg('');
+  ui();
+  setupScreen('Desconectado. Leia o QR code para conectar de novo.');
+}
+$('bOff').onclick = () => { buzz(); disconnect(); };
+
+const scanEl = $('scan'), scanVideo = $('scanVideo');
+let scanStream = null, scanning = false, jsQRLoad = null;
+function loadJsQR() {
+  return (jsQRLoad ||= new Promise((ok, no) => {
+    if (window.jsQR) return ok();
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/jsqr@1.4.0/dist/jsQR.js';
+    s.onload = () => ok(); s.onerror = () => { jsQRLoad = null; no(new Error('leitor indisponível')); };
+    document.head.appendChild(s);
+  }));
+}
+function stopScan() {
+  scanning = false;
+  scanEl.classList.remove('show');
+  if (scanStream) { scanStream.getTracks().forEach((t) => t.stop()); scanStream = null; }
+  scanVideo.srcObject = null;
+}
+// Aceita o endereço completo do QR (https://.../#id.token) ou só "id.token".
+function parseQr(text) {
+  const raw = String(text).trim();
+  const h = raw.includes('#') ? raw.slice(raw.indexOf('#') + 1) : raw;
+  const [id, token] = h.split('.');
+  return /^[\w-]{4,}$/.test(id || '') && /^[\w-]{4,}$/.test(token || '') ? { id, token } : null;
+}
+function applyPair(p) {
+  LS.set('pair', p);
+  pair = p;
+  S.connected = false; S.authorized = false;
+  setupScreen();
+  ui();
+  connect();
+}
+async function startScan() {
+  $('scanMsg').textContent = 'Aponte a câmera para o QR code do computador.';
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('câmera indisponível (precisa de HTTPS)');
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+  } catch (e) {
+    const msg = e && e.name === 'NotAllowedError' ? 'Permita o uso da câmera para ler o QR code.' : 'Não consegui abrir a câmera: ' + (e.message || e.name);
+    $('warn').textContent = msg; $('setupMsg').textContent = msg;
+    return;
+  }
+  scanVideo.srcObject = scanStream;
+  try { await scanVideo.play(); } catch {}
+  scanEl.classList.add('show');
+  scanning = true;
+  let detector = null;
+  if ('BarcodeDetector' in window) { try { detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch {} }
+  if (!detector) {
+    try { await loadJsQR(); } catch (e) { $('scanMsg').textContent = 'Sem internet para carregar o leitor de QR code.'; }
+  }
+  const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+  const tick = async () => {
+    if (!scanning) return;
+    let text = null;
+    try {
+      if (scanVideo.readyState >= 2) {
+        if (detector) {
+          const r = await detector.detect(scanVideo);
+          if (r.length) text = r[0].rawValue;
+        } else if (window.jsQR) {
+          const w = scanVideo.videoWidth, h = scanVideo.videoHeight, k = Math.min(1, 640 / w);
+          cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+          cx.drawImage(scanVideo, 0, 0, cv.width, cv.height);
+          const img = cx.getImageData(0, 0, cv.width, cv.height);
+          const r = window.jsQR(img.data, img.width, img.height);
+          if (r) text = r.data;
+        }
+      }
+    } catch {}
+    if (text) {
+      const p = parseQr(text);
+      if (p) { buzz(); stopScan(); applyPair(p); return; }
+      $('scanMsg').textContent = 'Esse QR code não é do prisma-screen. Tente o QR code do computador.';
+    }
+    setTimeout(tick, 200);
+  };
+  tick();
+}
+$('bScan').onclick = startScan;
+$('bScan2').onclick = startScan;
+$('scanCancel').onclick = stopScan;
 
 // ---------- Envio de posição (~60 Hz, só se mudou) ----------
 let sentX = -1, sentY = -1;
