@@ -35,6 +35,8 @@
   #qr { background: #fff; padding: 10px; border-radius: 16px; width: max-content; margin: 10px auto; }
   #qr img { display: block; width: 200px; height: 200px; image-rendering: pixelated; }
   small { color: var(--muted); font-size: 12px; }
+  .keyrow { display: flex; gap: 8px; } .keyrow select { flex: 1; min-width: 0; }
+  button.cap { background: var(--coral); border-color: var(--coral); color: #fff; }
   #hres { min-height: 1.3em; }
 </style>
 </head>
@@ -56,30 +58,54 @@
 
   <section>
     <h2>Holyrics (passar slides)</h2>
-    <label>Endereço do computador com o Holyrics
-      <input type="text" id="hHost" placeholder="127.0.0.1">
+    <small>Por teclas, a ponte aperta no Holyrics a mesma tecla que você usaria (configure as teclas abaixo). Pela API, ela chama o Holyrics direto e as teclas não são usadas.</small>
+    <label>Tecla de avançar
+      <div class="keyrow"><select id="hKeyN"><option value="PageDown" selected>PageDown</option><option value="PageUp">PageUp</option><option value="Right">Right</option><option value="Left">Left</option><option value="Down">Down</option><option value="Up">Up</option><option value="Space">Space</option><option value="Enter">Enter</option><option value="Home">Home</option><option value="End">End</option></select><button class="sec" id="bCapN" type="button">Capturar tecla</button></div>
     </label>
-    <label>Porta do API Server
-      <input type="number" id="hPort" placeholder="8091">
+    <label>Tecla de voltar
+      <div class="keyrow"><select id="hKeyP"><option value="PageDown">PageDown</option><option value="PageUp" selected>PageUp</option><option value="Right">Right</option><option value="Left">Left</option><option value="Down">Down</option><option value="Up">Up</option><option value="Space">Space</option><option value="Enter">Enter</option><option value="Home">Home</option><option value="End">End</option></select><button class="sec" id="bCapP" type="button">Capturar tecla</button></div>
     </label>
-    <label>Token (Arquivo › Configurações › API Server › Gerenciar permissões; libere ActionNext e ActionPrevious)
-      <input type="password" id="hToken" placeholder="token">
+    <label>Como enviar
+      <select id="hMode">
+        <option value="direct">Direto na janela, sem trazer o Holyrics para a frente</option>
+        <option value="focus">Traz o Holyrics por um instante e devolve o foco</option>
+        <option value="api">Pela API do Holyrics (não mexe em janela nem em foco)</option>
+      </select>
     </label>
+    <div id="apiBox">
+      <label>Endereço do computador com o Holyrics
+        <input type="text" id="aHost" placeholder="127.0.0.1">
+      </label>
+      <label>Porta do API Server
+        <input type="number" id="aPort" placeholder="8091">
+      </label>
+      <label>Token (Arquivo › Configurações › API Server; libere ActionNext e ActionPrevious)
+        <input type="password" id="aToken" placeholder="token">
+      </label>
+    </div>
     <div class="btns">
       <button class="sec" id="bNext">Testar Avançar</button>
       <button class="sec" id="bPrev">Testar Voltar</button>
+      <button class="sec" id="bDebug">Abrir debug</button>
     </div>
     <div class="row" id="hres"></div>
   </section>
 
   <section>
-    <h2>Laser, destaque e tela preta (sobre o projetor)</h2>
-    <label>Monitor onde o efeito aparece
-      <select id="display"></select>
+    <h2>Saída com efeitos (laser, destaque, tela preta)</h2>
+    <label>Link da transmissão do Holyrics (widescreen)
+      <input type="text" id="sSource" placeholder="http://192.168.1.200:80/view/widescreen">
     </label>
-    <label class="chk"><input type="checkbox" id="overlayOn"> Autorizar efeitos neste monitor</label>
-    <small>Sem autorização, o celular só passa slides. O laser, o destaque e a tela preta nunca aparecem em outra tela.</small>
-    <div class="btns"><button class="sec" id="bTest">Testar laser e destaque (4 s)</button></div>
+    <label>Porta do link novo
+      <input type="number" id="sPort" placeholder="8765">
+    </label>
+    <div class="row" id="sres"></div>
+    <small>Abra o link novo no navegador ou use como fonte de navegador no OBS. Laser, destaque e tela preta aparecem só nesse link, nunca na tela do computador.</small>
+    <div id="sUrls"></div>
+    <small>Outros aparelhos da rede usam o endereço com o IP do computador (não o 127.0.0.1). Se não abrirem, clique em <b>Liberar acesso na rede</b>: o Windows pede permissão de administrador e abre essa porta no firewall.</small>
+    <div class="row" id="fwres"></div>
+    <div class="btns"><button class="sec" id="bTest">Testar efeitos no link (5 s)</button>
+      <button class="sec" id="bFw">Liberar acesso na rede (firewall)</button></div>
   </section>
 
   <section>

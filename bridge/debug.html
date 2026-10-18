@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>prisma-screen · debug das teclas</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #17161C; color: #F4F2F8; font: 13px/1.45 "Segoe UI", system-ui, sans-serif; display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+  header { padding: 12px 14px; background: #232130; border-bottom: 1px solid #34313F; display: grid; gap: 8px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button, select { font: 600 13px "Segoe UI", sans-serif; min-height: 34px; border-radius: 10px; border: 1px solid #34313F; background: #1F1D26; color: #F4F2F8; padding: 0 12px; cursor: pointer; }
+  button.p { background: #6C3BF5; border-color: #6C3BF5; }
+  #log { overflow: auto; padding: 10px 14px; font: 12px/1.5 Consolas, monospace; }
+  .e { border-bottom: 1px solid #2a2836; padding: 6px 0; white-space: pre-wrap; word-break: break-word; }
+  .ok { color: #A6D82E; } .bad { color: #FF6B57; } .m { color: #A9A5BA; }
+  small { color: #A9A5BA; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <button id="bList">Listar janelas do Holyrics</button>
+    <label>Alvo <select id="target"><option value="0">Automático</option></select></label>
+    <label>Modo <select id="mode"><option value="direct">Direto na janela</option><option value="focus">Com foco</option></select></label>
+    <button class="p" id="bDown">Enviar PageDown</button>
+    <button class="p" id="bUp">Enviar PageUp</button>
+    <button class="p" id="bApiN">API: ActionNext</button>
+    <button class="p" id="bApiP">API: ActionPrevious</button>
+    <button id="bClear">Limpar</button>
+  </div>
+  <small>Cada envio (inclusive os do celular) aparece abaixo com a janela alvo, o retorno do Windows e quem estava em primeiro plano antes e depois.</small>
+</header>
+<div id="log"></div>
+<script src="debug.js"></script>
+</body>
+</html>

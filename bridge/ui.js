@@ -100,41 +100,113 @@ api.onHolyrics((r) => {
   $('hres').append(d, t);
 });
 
-function saveHolyrics() {
-  api.setCfg({ holyrics: { host: $('hHost').value.trim() || '127.0.0.1', port: Number($('hPort').value) || 8091, token: $('hToken').value.trim() } });
+// ---------- Captura de tecla ----------
+const EXT_CODES = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', 'Insert', 'Delete', 'NumpadEnter', 'NumpadDivide', 'ControlRight', 'AltRight']);
+const MODS = new Set(['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'NumLock']);
+function keyLabel(e) {
+  if (e.key === ' ') return 'Espaço';
+  return e.key.length === 1 ? e.key.toUpperCase() + (e.code.startsWith('Numpad') ? ' (numérico)' : '') : e.key;
 }
-['hHost', 'hPort', 'hToken'].forEach((id) => ($(id).onchange = saveHolyrics));
+function setCaptured(sel, value) {
+  let o = [...sel.options].find((x) => x.value === value);
+  if (!o) {
+    o = document.createElement('option');
+    o.value = value;
+    o.textContent = 'Capturada: ' + value.split(':').slice(3).join(':');
+    sel.appendChild(o);
+  }
+  sel.value = value;
+}
+function ensureOption(sel, value) { if (value && value.startsWith('vk:')) setCaptured(sel, value); else sel.value = value; }
+function capture(btn, sel) {
+  if (btn.classList.contains('cap')) return;
+  const old = btn.textContent;
+  btn.textContent = 'Pressione a tecla… (Esc cancela)';
+  btn.classList.add('cap');
+  const done = () => { btn.textContent = old; btn.classList.remove('cap'); window.removeEventListener('keydown', onKey, true); };
+  function onKey(e) {
+    if (MODS.has(e.key)) return;
+    e.preventDefault(); e.stopPropagation();
+    if (e.key === 'Escape') return done();
+    if (!e.keyCode) return;
+    setCaptured(sel, 'vk:' + e.keyCode + ':' + (EXT_CODES.has(e.code) ? 1 : 0) + ':' + keyLabel(e));
+    done();
+    saveHolyrics();
+  }
+  window.addEventListener('keydown', onKey, true);
+}
+$('bCapN').onclick = () => capture($('bCapN'), $('hKeyN'));
+$('bCapP').onclick = () => capture($('bCapP'), $('hKeyP'));
+
+function toggleApi() { $('apiBox').style.display = $('hMode').value === 'api' ? '' : 'none'; }
+function saveHolyrics() {
+  toggleApi();
+  return api.setCfg({ holyrics: { keyNext: $('hKeyN').value, keyPrev: $('hKeyP').value, mode: $('hMode').value, host: $('aHost').value.trim() || '127.0.0.1', port: Number($('aPort').value) || 8091, token: $('aToken').value.trim() } });
+}
+['hKeyN', 'hKeyP', 'hMode', 'aHost', 'aPort', 'aToken'].forEach((id) => ($(id).onchange = saveHolyrics));
 $('bNext').onclick = async () => { await saveHolyrics(); api.testHolyrics('ActionNext'); };
+$('bDebug').onclick = () => api.openDebug();
 $('bPrev').onclick = async () => { await saveHolyrics(); api.testHolyrics('ActionPrevious'); };
 
-// ---------- Overlay / sistema ----------
-$('display').onchange = () => api.setCfg({ displayId: Number($('display').value) });
-$('overlayOn').onchange = () => api.setCfg({ overlayOn: $('overlayOn').checked });
+// ---------- Saída com efeitos ----------
+function showStream(r) {
+  $('sres').innerHTML = '';
+  const d = document.createElement('span');
+  const t = document.createElement('span');
+  if (r.ok) { d.className = 'dot ok'; t.textContent = 'Servindo a saída com efeitos'; }
+  else { d.className = 'dot ' + (cfg.stream && cfg.stream.source ? 'bad' : 'warn'); t.textContent = r.error || 'Cole o link do Holyrics para ligar.'; }
+  $('sres').append(d, t);
+  $('sUrls').innerHTML = '';
+  (r.urls || []).forEach((u) => {
+    const row = document.createElement('div');
+    row.className = 'row mono';
+    const span = document.createElement('span');
+    span.textContent = u;
+    const btn = document.createElement('button');
+    btn.className = 'sec';
+    btn.textContent = 'Copiar';
+    btn.onclick = () => { navigator.clipboard.writeText(u); btn.textContent = 'Copiado'; setTimeout(() => (btn.textContent = 'Copiar'), 1500); };
+    row.append(span, btn);
+    $('sUrls').appendChild(row);
+  });
+}
+api.onStream(showStream);
+function saveStream() {
+  const source = $('sSource').value.trim();
+  const port = Number($('sPort').value) || 8765;
+  cfg.stream = { source, port };
+  return api.setCfg({ stream: { source, port } });
+}
+['sSource', 'sPort'].forEach((id) => ($(id).onchange = saveStream));
+
+// ---------- Sistema ----------
 $('autostart').onchange = () => api.setCfg({ autostart: $('autostart').checked });
-$('bTest').onclick = () => api.testOverlay();
+$('bTest').onclick = () => api.testStream();
+$('bFw').onclick = async () => {
+  $('fwres').textContent = 'Aguardando a permissão do Windows…';
+  const r = await api.openFirewall();
+  $('fwres').innerHTML = '';
+  const d = document.createElement('span'); d.className = 'dot ' + (r.ok ? 'ok' : 'bad');
+  const t = document.createElement('span'); t.textContent = r.ok ? 'Porta liberada no firewall.' : r.error;
+  $('fwres').append(d, t);
+};
 $('bRotate').onclick = () => rotate();
 
 // ---------- Início ----------
 (async () => {
   const r = await api.getCfg();
   cfg = r.cfg;
-  $('hHost').value = cfg.holyrics.host;
-  $('hPort').value = cfg.holyrics.port;
-  $('hToken').value = cfg.holyrics.token;
-  $('overlayOn').checked = !!cfg.overlayOn;
+  ensureOption($('hKeyN'), cfg.holyrics.keyNext);
+  ensureOption($('hKeyP'), cfg.holyrics.keyPrev);
+  $('hMode').value = cfg.holyrics.mode;
+  $('aHost').value = cfg.holyrics.host;
+  $('aPort').value = cfg.holyrics.port;
+  $('aToken').value = cfg.holyrics.token;
+  toggleApi();
+  $('sSource').value = cfg.stream.source;
+  $('sPort').value = cfg.stream.port;
+  api.streamInfo().then(showStream);
   $('autostart').checked = !!cfg.autostart;
-  const sel = $('display');
-  r.displays.forEach((d) => {
-    const o = document.createElement('option');
-    o.value = d.id; o.textContent = d.label;
-    sel.appendChild(o);
-  });
-  if (cfg.displayId && r.displays.some((d) => d.id === cfg.displayId)) sel.value = cfg.displayId;
-  else {
-    const secondary = r.displays.length > 1 ? r.displays[r.displays.length - 1] : r.displays[0];
-    sel.value = secondary.id;
-    api.setCfg({ displayId: secondary.id });
-  }
   drawQr();
   startPeer();
 })();

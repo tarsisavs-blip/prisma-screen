@@ -90,6 +90,12 @@
   .seg button.sel { background: var(--violet); color: #fff; }
   #pad { flex: 1.4; min-height: 150px; border-radius: 22px; background: var(--bg2); border: 2px dashed var(--line); display: grid; place-content: center; color: var(--muted); text-align: center; touch-action: none; padding: 10px; font-weight: 700; }
   #pad small { font-weight: 500; font-size: 13px; }
+  #pad { position: relative; overflow: hidden; }
+  #pv { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; display: none; pointer-events: none; }
+  #pad.hasPv { border-style: solid; background: #000; padding: 0; flex: none; min-height: 0; aspect-ratio: 16 / 9; width: 100%; }
+  #pad.hasPv #pv { display: block; }
+  #pad.hasPv #padLbl { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 10px 8px; background: linear-gradient(transparent, rgba(0,0,0,.75)); color: #F4F2F8; font-size: 12px; }
+  #pad.hasPv #padLbl b { display: none; }
   #pad.hold { border-style: solid; border-color: var(--cyan); background: color-mix(in srgb, var(--cyan) 12%, var(--bg2)); color: var(--text); }
   #setup { position: fixed; inset: 0; background: var(--bg); display: none; place-content: center; text-align: center; padding: 24px; gap: 12px; z-index: 9; justify-items: center; }
   #setup.show { display: grid; }
@@ -142,7 +148,7 @@
     <button id="mPad" class="sel">Touchpad</button>
   </div>
   <label class="sl" id="sensRow"><span class="lbl">SENSIB. GIRO</span> <input type="range" id="sens" min="15" max="90" value="40"></label>
-  <div id="pad">Touchpad<br><small id="padHint">deslize para mover o laser / destaque</small></div>
+  <div id="pad"><img id="pv" alt="Prévia da projeção"><div id="padLbl"><b>Touchpad</b><br><small id="padHint">deslize para mover o laser / destaque</small></div></div>
 </div>
 <div id="setup">
   <svg viewBox="0 0 48 44" width="64" height="58" aria-hidden="true"><path d="M4 28l20 10 20-10v4L24 42 4 32z" fill="#FF6B57"/><path d="M4 20l20 10 20-10v4L24 34 4 24z" fill="#22C7D9"/><path d="M24 2L44 12 24 22 4 12z" fill="#6C3BF5"/></svg>

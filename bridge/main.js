@@ -1,9 +1,14 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, screen, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const keys = require('./keys');
+const stream = require('./stream');
+const preview = require('./preview');
+const hapi = require('./holyrics-api');
+const { spawn } = require('child_process');
 
-// O app foi renomeado para prisma-screen, mas as configurações (token do Holyrics, pareamento) ficam na pasta antiga.
+// O app foi renomeado para prisma-screen, mas as configurações (pareamento, link do Holyrics) ficam na pasta antiga.
 app.setPath('userData', path.join(app.getPath('appData'), 'Passador Holyrics'));
 
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -11,9 +16,8 @@ if (!app.requestSingleInstanceLock()) app.quit();
 const DEFAULT_PWA = 'https://passador-de-slides.vercel.app/';
 const cfgFile = () => path.join(app.getPath('userData'), 'config.json');
 let cfg = {};
-let ui = null, overlay = null, tray = null;
+let ui = null, tray = null;
 let quitting = false;
-const st = { laser: { on: false }, fade: { on: false }, blackout: { on: false } };
 
 const rnd = (n) => {
   const a = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -26,9 +30,9 @@ function loadCfg() {
   c.peerId ||= 'psl-' + rnd(12);
   c.token ||= rnd(16);
   c.pwaUrl ||= DEFAULT_PWA;
-  c.holyrics = { host: '127.0.0.1', port: 8091, token: '', ...(c.holyrics || {}) };
-  c.overlayOn ??= false;
-  c.displayId ??= null;
+  c.holyrics = { keyNext: 'PageDown', keyPrev: 'PageUp', mode: 'direct', host: '127.0.0.1', port: 8091, token: '', ...(c.holyrics || {}) };
+  c.stream = { source: '', port: 8765, ...(c.stream || {}) };
+  delete c.overlayOn; delete c.displayId;
   c.autostart ??= false;
   return c;
 }
@@ -37,111 +41,96 @@ function saveCfg() {
   fs.writeFileSync(cfgFile(), JSON.stringify(cfg, null, 2));
 }
 
-// ---------- Monitores ----------
-function displaysInfo() {
-  const primary = screen.getPrimaryDisplay().id;
-  return screen.getAllDisplays().map((d, i) => ({
-    id: d.id,
-    label: `Monitor ${i + 1} (${d.bounds.width}×${d.bounds.height})${d.id === primary ? ' · principal' : ''}`,
-  }));
-}
-function targetDisplay() {
-  const all = screen.getAllDisplays();
-  return all.find((d) => d.id === cfg.displayId) || all.find((d) => d.id !== screen.getPrimaryDisplay().id) || all[0];
-}
-
-// ---------- Janela de overlay (transparente, sem foco, não captura cliques) ----------
-function ensureOverlay() {
-  const d = targetDisplay();
-  if (overlay && !overlay.isDestroyed()) {
-    overlay.setBounds(d.bounds);
-    return overlay;
-  }
-  overlay = new BrowserWindow({
-    ...d.bounds,
-    transparent: true, frame: false, resizable: false, movable: false, focusable: false,
-    skipTaskbar: true, hasShadow: false, show: false, alwaysOnTop: true, fullscreenable: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js') },
-  });
-  overlay.setAlwaysOnTop(true, 'screen-saver');
-  overlay.setIgnoreMouseEvents(true);
-  overlay.loadFile(path.join(__dirname, 'overlay.html'));
-  overlay.on('closed', () => (overlay = null));
-  return overlay;
-}
-function overlaySend(d) {
-  if (!cfg.overlayOn) return;
-  const w = ensureOverlay();
-  if (!w.webContents.isLoading()) w.webContents.send('overlay', d);
-  else w.webContents.once('did-finish-load', () => w.webContents.send('overlay', d));
-  if (d.t === 'state') {
-    if (d.laser) st.laser = d.laser;
-    if (d.fade) st.fade = d.fade;
-    if (d.blackout) st.blackout = d.blackout;
-    const active = st.laser.on || st.fade.on || st.blackout.on;
-    if (active && !w.isVisible()) w.showInactive();
-    if (!active && w.isVisible()) w.hide();
-  }
-}
-function overlayOff() {
-  st.laser.on = false; st.fade.on = false; st.blackout.on = false;
-  if (overlay && !overlay.isDestroyed()) overlay.hide();
-}
-
-// ---------- Holyrics ----------
+// ---------- Holyrics (API ou teclas) ----------
 async function holyrics(action) {
   const h = cfg.holyrics;
-  if (!h.token) return report({ ok: false, action, error: 'Token do Holyrics não configurado.' });
-  const url = `http://${h.host}:${h.port}/api/${action}?token=${encodeURIComponent(h.token)}`;
-  try {
-    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(3000) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || j.status === 'error') {
-      return report({ ok: false, action, error: `Holyrics respondeu ${r.status}${j.error ? ': ' + j.error : ''}` });
-    }
-    return report({ ok: true, action });
-  } catch (e) {
-    return report({ ok: false, action, error: 'Não alcançou o Holyrics (' + (e.name === 'TimeoutError' ? 'tempo esgotado' : e.message) + ').' });
-  }
+  const r = h.mode === 'api' ? await hapi.call(h, action) : await keys.press(action === 'ActionNext' ? h.keyNext : h.keyPrev, h.mode);
+  return report({ ok: r.ok, error: r.error, action });
 }
 function report(r) {
   if (ui && !ui.isDestroyed()) ui.webContents.send('holyrics-result', r);
   return r;
 }
 
+// ---------- Janela de debug das teclas ----------
+let dbgWin = null;
+const dbgLog = [];
+keys.events.on('log', (e) => {
+  dbgLog.push(e);
+  if (dbgLog.length > 200) dbgLog.shift();
+  if (dbgWin && !dbgWin.isDestroyed()) dbgWin.webContents.send('dbg-log', e);
+});
+function showDebug() {
+  if (dbgWin && !dbgWin.isDestroyed()) { dbgWin.show(); dbgWin.focus(); return; }
+  dbgWin = new BrowserWindow({
+    width: 760, height: 560, title: 'prisma-screen · debug das teclas', autoHideMenuBar: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js') },
+  });
+  dbgWin.loadFile(path.join(__dirname, 'debug.html'));
+  dbgWin.webContents.once('did-finish-load', () => dbgLog.forEach((e) => dbgWin.webContents.send('dbg-log', e)));
+}
+ipcMain.handle('dbg:open', showDebug);
+ipcMain.handle('dbg:list', () => keys.listWindows());
+ipcMain.handle('dbg:api', (_e, action) => hapi.call(cfg.holyrics, action));
+ipcMain.handle('fw:open', () => new Promise((resolve) => {
+  const port = Number(cfg.stream.port) || 8765;
+  const name = 'prisma-screen saida ' + port;
+  const args = `advfirewall firewall add rule name="${name}" dir=in action=allow protocol=TCP localport=${port} profile=any`;
+  const ps = `try { Start-Process netsh -ArgumentList '${args}' -Verb RunAs -Wait -WindowStyle Hidden -ErrorAction Stop } catch { exit 2 }; if (Get-NetFirewallRule -DisplayName '${name}' -ErrorAction SilentlyContinue) { exit 0 } else { exit 3 }`;
+  const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true });
+  p.on('exit', (c) => resolve(c === 0 ? { ok: true } : { ok: false, error: c === 2 ? 'A permissão do Windows foi negada ou cancelada.' : 'Não consegui confirmar a regra no firewall.' }));
+  p.on('error', (e) => resolve({ ok: false, error: e.message }));
+}));
+ipcMain.handle('dbg:send', (_e, key, mode, hwnd) => keys.press(key, mode, hwnd));
+
+// ---------- Saída com efeitos (link para navegador/OBS) ----------
+let streamInfo = { ok: false, error: '' };
+async function startStream() {
+  streamInfo = await stream.start(Number(cfg.stream.port) || 8765, cfg.stream.source);
+  preview.stop(); // o celular pede de novo e a prévia reabre já com a nova fonte
+  if (ui && !ui.isDestroyed()) ui.webContents.send('stream-info', streamInfo);
+  toPhone(status());
+  return streamInfo;
+}
+
 // ---------- Mensagens do celular ----------
 function status() {
-  const d = targetDisplay();
-  return { t: 'status', authorized: !!cfg.overlayOn, title: 'Holyrics' + (cfg.overlayOn ? ' · overlay no ' + displaysInfo().find((x) => x.id === d.id)?.label.split(' (')[0] : '') };
+  return { t: 'status', authorized: !!streamInfo.ok, preview: !!streamInfo.ok, title: 'Holyrics' + (streamInfo.ok ? ' · efeitos no link de saída' : '') };
 }
 function toPhone(m) { if (ui && !ui.isDestroyed()) ui.webContents.send('to-phone', m); }
 
 ipcMain.on('phone:msg', (_e, d) => {
   if (!d) return;
   if (d.t === 'key') holyrics(d.k === 'next' ? 'ActionNext' : 'ActionPrevious');
-  else if (d.t === 'state' || d.t === 'pos') overlaySend(d);
+  else if (d.t === 'state' || d.t === 'pos') stream.applyFx(d);
+  else if (d.t === 'preview') {
+    // O celular pede a prévia da projeção (e renova o pedido de tempos em tempos).
+    if (d.on && streamInfo.ok) preview.start(`http://127.0.0.1:${Number(cfg.stream.port) || 8765}/saida`, toPhone);
+    else preview.stop();
+  }
 });
 ipcMain.on('phone:conn', (_e, on) => { if (on) toPhone(status()); });
 
-ipcMain.handle('cfg:get', () => ({ cfg, displays: displaysInfo() }));
-ipcMain.handle('cfg:set', (_e, p) => {
-  const was = cfg.overlayOn;
+ipcMain.handle('cfg:get', () => ({ cfg }));
+ipcMain.handle('cfg:set', async (_e, p) => {
   if (p.holyrics) cfg.holyrics = { ...cfg.holyrics, ...p.holyrics };
-  for (const k of ['pwaUrl', 'overlayOn', 'displayId', 'autostart']) if (k in p) cfg[k] = p[k];
+  const restream = !!p.stream;
+  if (p.stream) cfg.stream = { ...cfg.stream, ...p.stream };
+  for (const k of ['pwaUrl', 'autostart']) if (k in p) cfg[k] = p[k];
   saveCfg();
-  if (!cfg.overlayOn && was) overlayOff();
-  if (cfg.overlayOn) ensureOverlay();
   app.setLoginItemSettings({ openAtLogin: !!cfg.autostart });
+  if (restream) await startStream();
   toPhone(status());
   return true;
 });
+ipcMain.handle('stream:info', () => streamInfo);
 ipcMain.handle('holyrics:test', (_e, action) => holyrics(action));
-ipcMain.handle('overlay:test', async () => {
-  const was = cfg.overlayOn;
-  cfg.overlayOn = true;
-  overlaySend({ t: 'state', laser: { on: true, color: 'red' }, fade: { on: false, radius: 0.15, dim: 0.75 }, x: 0.5, y: 0.5 });
-  setTimeout(() => overlaySend({ t: 'state', laser: { on: false }, fade: { on: true, radius: 0.15, dim: 0.75 }, x: 0.5, y: 0.5 }), 1800);
-  setTimeout(() => { overlaySend({ t: 'state', laser: { on: false }, fade: { on: false } }); cfg.overlayOn = was; if (!was) overlayOff(); }, 3600);
+ipcMain.handle('stream:test', () => {
+  const s = (o) => stream.applyFx({ t: 'state', ...o });
+  s({ laser: { on: true, color: 'red' }, fade: { on: false }, blackout: { on: false }, x: 0.5, y: 0.5 });
+  setTimeout(() => s({ laser: { on: false }, fade: { on: true, radius: 0.15, dim: 0.75 } }), 1500);
+  setTimeout(() => s({ fade: { on: false }, blackout: { on: true } }), 3000);
+  setTimeout(() => s({ blackout: { on: false } }), 4200);
   return true;
 });
 ipcMain.handle('pairing:rotate', () => {
@@ -175,6 +164,7 @@ app.whenReady().then(() => {
   ]));
   tray.on('click', showUi);
   showUi();
+  if (cfg.stream.source) startStream();
 });
-app.on('before-quit', () => { quitting = true; });
+app.on('before-quit', () => { quitting = true; keys.stop(); preview.stop(); stream.stop(); });
 app.on('window-all-closed', () => {});

@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>prisma-screen · saída</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+  #fade { position: fixed; inset: 0; display: none; pointer-events: none; }
+  #dot { position: fixed; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%; display: none; border: 2px solid rgba(255,255,255,.9); pointer-events: none; }
+  #black { position: fixed; inset: 0; background: #000; display: none; pointer-events: none; }
+</style>
+</head>
+<body>
+<iframe id="v" allow="autoplay"></iframe>
+<div id="fade"></div>
+<div id="dot"></div>
+<div id="black"></div>
+<script>
+const COLORS = { green: '#22ff55', red: '#ff2a2a', blue: '#2a8bff' };
+document.getElementById('v').src = __SRC__;
+const fadeEl = document.getElementById('fade'), blackEl = document.getElementById('black'), dotEl = document.getElementById('dot');
+let st = null;
+function render() {
+  if (!st) return;
+  const w = innerWidth, h = innerHeight, px = st.x * w, py = st.y * h;
+  if (st.fade.on) {
+    const r = st.fade.radius * Math.min(w, h), f = Math.max(8, r * 0.12);
+    fadeEl.style.display = 'block';
+    fadeEl.style.background = `radial-gradient(circle at ${px}px ${py}px, rgba(0,0,0,0) ${r}px, rgba(0,0,0,${st.fade.dim}) ${r + f}px)`;
+  } else fadeEl.style.display = 'none';
+  if (st.laser.on) {
+    const c = COLORS[st.laser.color] || COLORS.red;
+    dotEl.style.display = 'block';
+    dotEl.style.background = c;
+    dotEl.style.boxShadow = `0 0 10px 4px ${c}`;
+    dotEl.style.transform = `translate(${px - 10}px,${py - 10}px)`;
+  } else dotEl.style.display = 'none';
+  blackEl.style.display = st.blackout.on ? 'block' : 'none';
+}
+function connect() {
+  const es = new EventSource('/_fx/events');
+  es.onmessage = (e) => { st = JSON.parse(e.data); requestAnimationFrame(render); };
+  es.onerror = () => { es.close(); setTimeout(connect, 1500); };
+}
+connect();
+addEventListener('resize', render);
+</script>
+</body>
+</html>

@@ -59,7 +59,7 @@ function connect() {
   peer = new Peer({ config: ICE });
   let opened = false;
   const again = (e) => {
-    S.connected = false; S.authorized = false; ui();
+    S.connected = false; S.authorized = false; S.preview = false; showFrame(null); syncPreview(); ui();
     if (!pair) return; // desconexão manual: não tenta reconectar
     if (e && e.type) dbg('Erro: ' + e.type + ' — ' + (ERR[e.type] || (e.message || '')));
     clearTimeout(retry); retry = setTimeout(connect, 3000);
@@ -77,9 +77,12 @@ function connect() {
         const was = S.authorized;
         S.authorized = !!m.authorized;
         S.title = m.title || '';
+        S.preview = !!m.preview; // só a ponte do Holyrics oferece a prévia da projeção
+        if (!S.preview) showFrame(null);
         ui();
+        syncPreview();
         if (S.authorized && !was) pushState(true);
-      }
+      } else if (m && m.t === 'frame' && S.preview) showFrame(m.img);
     });
     conn.on('close', again);
     conn.on('error', again);
@@ -87,6 +90,24 @@ function connect() {
 }
 
 const send = (o) => { if (conn && conn.open) conn.send(o); };
+
+// ---------- Prévia da projeção (só com a ponte do Holyrics) ----------
+// No lugar do touchpad vazio, mostra o que está sendo projetado, com laser/destaque/tela preta.
+let previewTimer = null;
+function showFrame(b64) {
+  $('pad').classList.toggle('hasPv', !!b64);
+  if (b64) $('pv').src = 'data:image/jpeg;base64,' + b64;
+  else $('pv').removeAttribute('src');
+}
+function syncPreview() {
+  clearInterval(previewTimer);
+  previewTimer = null;
+  const want = S.preview && S.authorized && !document.hidden;
+  send({ t: 'preview', on: want });
+  // A ponte desliga a prévia sozinha se parar de receber este sinal.
+  if (want) previewTimer = setInterval(() => send({ t: 'preview', on: true }), 8000);
+  else if (!S.preview || !S.authorized) showFrame(null);
+}
 function pushState(withPos) {
   send({
     t: 'state',
@@ -143,6 +164,9 @@ function disconnect() {
   // Apaga laser, destaque e tela preta no computador antes de sair.
   S.laser = S.fade = S.blackout = S.touching = false;
   pushState(true);
+  send({ t: 'preview', on: false });
+  clearInterval(previewTimer); previewTimer = null;
+  S.preview = false; showFrame(null);
   pair = null;
   try { localStorage.removeItem('pair'); } catch {}
   clearTimeout(retry);
@@ -276,7 +300,7 @@ const release = () => { last = null; touch(false); };
 pad.addEventListener('pointerup', release);
 pad.addEventListener('pointercancel', release);
 pad.addEventListener('lostpointercapture', release);
-document.addEventListener('visibilitychange', () => { if (document.hidden) release(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) release(); syncPreview(); });
 
 // ---------- Giroscópio ----------
 let ref = null, smooth = null, lastO = null;
